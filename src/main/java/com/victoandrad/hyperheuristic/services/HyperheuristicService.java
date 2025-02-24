@@ -1,7 +1,6 @@
 package com.victoandrad.hyperheuristic.services;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.victoandrad.hyperheuristic.heuristics.hyperheuristics.Hyperheuristic;
 import com.victoandrad.hyperheuristic.heuristics.metaheuristics.Metaheuristic;
@@ -9,7 +8,6 @@ import com.victoandrad.hyperheuristic.heuristics.hyperheuristics.choicefunction.
 import com.victoandrad.hyperheuristic.heuristics.metaheuristics.dependents.Performance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -24,12 +22,6 @@ import java.util.concurrent.Executors;
 @Service
 public class HyperheuristicService {
 
-    // To create HTTP requests
-    private final RestTemplate restTemplate;
-
-    // To convert objects to JSON
-    private final ObjectMapper objectMapper;
-
     // To store jobs
     private final ConcurrentMap<String, JsonNode> jobs = new ConcurrentHashMap<>();
 
@@ -40,24 +32,20 @@ public class HyperheuristicService {
     private final Hyperheuristic hyperHeuristic;
 
     // To store the meta-heuristic service
-    private final MetaheuristicService metaHeuristicService;
+    private final MetaheuristicService metaheuristicService;
 
     @Autowired
-    public HyperheuristicService(RestTemplate restTemplate,
-                                 ObjectMapper objectMapper,
-                                 Hyperheuristic hyperHeuristic,
-                                 MetaheuristicService metaHeuristicService) {
-        this.restTemplate = restTemplate;
-        this.objectMapper = objectMapper;
+    public HyperheuristicService(Hyperheuristic hyperHeuristic,
+                                 MetaheuristicService metaheuristicService) {
         this.hyperHeuristic = hyperHeuristic;
-        this.metaHeuristicService = metaHeuristicService;
+        this.metaheuristicService = metaheuristicService;
     }
 
     public String start() {
         LocalDateTime startExecution = LocalDateTime.now();
 
         String jobId = UUID.randomUUID().toString();
-        JsonNode problem = metaHeuristicService.getProblem();
+        JsonNode problem = metaheuristicService.getProblem();
         jobs.put(jobId, problem);
 
         executor.submit(() -> {
@@ -72,7 +60,7 @@ public class HyperheuristicService {
                 System.out.println("================");
                 Metaheuristic selectedHeuristic = hyperHeuristic.selectMetaheuristic();
                 LocalDateTime start = LocalDateTime.now();
-                JsonNode execution = metaHeuristicService.applyMetaHeuristic(selectedHeuristic, jobs.get(jobId));
+                JsonNode execution = metaheuristicService.applyMetaHeuristic(selectedHeuristic, jobs.get(jobId));
                 LocalDateTime end = LocalDateTime.now();
 
                 selectedHeuristic.setLastApplication(LocalDateTime.now());
@@ -99,7 +87,7 @@ public class HyperheuristicService {
             }
 
             updateSolverStatus(jobs.get(jobId), "NOT_SOLVING");
-            System.out.println("Hyper-heuristic finished: " + jobId);
+            System.out.println("Hyperheuristic finished: " + jobId);
         });
 
         return jobId;
@@ -107,7 +95,7 @@ public class HyperheuristicService {
 
     public JsonNode getStatus(String jobId) {
         JsonNode job = jobs.get(jobId);
-        return metaHeuristicService.stringToJson(
+        return metaheuristicService.stringToJson(
                 "{ \"name\": \"" + job.get("name").asText() +
                         "\", \"score\": \"" + job.get("score").asText() +
                         "\", \"solverStatus\": \"" + job.get("solverStatus").asText() +
@@ -130,6 +118,6 @@ public class HyperheuristicService {
         if (problem.isObject()) {
             ObjectNode objectNode = (ObjectNode) problem;
             objectNode.put("solverStatus", solverStatus);
-        };
+        }
     }
 }

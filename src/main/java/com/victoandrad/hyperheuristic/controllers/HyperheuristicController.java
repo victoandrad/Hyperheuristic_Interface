@@ -13,49 +13,49 @@ import java.util.List;
 @RequestMapping("/hyperheuristic")
 public class HyperheuristicController {
 
-    private final HyperheuristicService hyperHeuristicService;
-    private final MetaheuristicService metaHeuristicService;
+    private final HyperheuristicService hyperheuristicService;
+    private final MetaheuristicService metaheuristicService;
 
     @Autowired
-    public HyperheuristicController(HyperheuristicService hyperHeuristicService,
-                                    MetaheuristicService metaHeuristicService) {
-        this.hyperHeuristicService = hyperHeuristicService;
-        this.metaHeuristicService = metaHeuristicService;
+    public HyperheuristicController(HyperheuristicService hyperheuristicService,
+                                    MetaheuristicService metaheuristicService) {
+        this.hyperheuristicService = hyperheuristicService;
+        this.metaheuristicService = metaheuristicService;
     }
 
     @PostMapping
     public ResponseEntity<String> solve() {
-        String jobId = hyperHeuristicService.start();
+        String jobId = hyperheuristicService.start();
         return ResponseEntity.ok().body(jobId);
     }
 
     @GetMapping(value = "/{jobId}")
     public ResponseEntity<JsonNode> getJob(@PathVariable String jobId) {
-        JsonNode problem = hyperHeuristicService.getJob(jobId);
+        JsonNode problem = hyperheuristicService.getJob(jobId);
         return ResponseEntity.ok().body(problem);
     }
 
     @GetMapping
     public ResponseEntity<List<String>> getJobs() {
-        List<String> jobs = hyperHeuristicService.getJobs();
+        List<String> jobs = hyperheuristicService.getJobs();
         return ResponseEntity.ok().body(jobs);
     }
 
     @PutMapping(value = "/analyze")
     public ResponseEntity<JsonNode> analyze(@RequestBody JsonNode timetable) {
-        JsonNode result = metaHeuristicService.analyze(timetable);
+        JsonNode result = metaheuristicService.analyze(timetable);
         return ResponseEntity.ok().body(result);
     }
 
     @GetMapping(value = "/{jobId}/status")
     public ResponseEntity<JsonNode> getStatus(@PathVariable String jobId) {
-        JsonNode result = hyperHeuristicService.getStatus(jobId);
+        JsonNode result = hyperheuristicService.getStatus(jobId);
         return ResponseEntity.ok().body(result);
     }
 
     @DeleteMapping(value = "/{jobId}")
     public ResponseEntity<JsonNode> terminateSolving(@PathVariable String jobId) {
-        JsonNode result = metaHeuristicService.terminateSolving(jobId);
+        JsonNode result = metaheuristicService.terminateSolving(jobId);
         return ResponseEntity.ok().body(result);
     }
 }

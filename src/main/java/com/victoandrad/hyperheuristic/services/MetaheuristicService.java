@@ -75,7 +75,6 @@ public class MetaheuristicService {
         return stringToJson(response);
     }
 
-    // retorna o score e uma lista das constraints ocorridas
     public JsonNode analyze(JsonNode timetable) {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Accept", "application/json");
@@ -84,20 +83,6 @@ public class MetaheuristicService {
         String response = restTemplate.exchange(
                 API_URL + "/timetables/analyze",
                 HttpMethod.PUT,
-                request,
-                String.class).getBody();
-
-        return stringToJson(response);
-    }
-
-    public JsonNode getStatus(String jobId) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Accept", "application/json");
-        HttpEntity<JsonNode> request = new HttpEntity<>(headers);
-
-        String response = restTemplate.exchange(
-                API_URL + "/timetables/" + jobId + "/status}",
-                HttpMethod.GET,
                 request,
                 String.class).getBody();
 
