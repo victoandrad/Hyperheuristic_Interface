@@ -1,17 +1,13 @@
 package com.victoandrad.hyperheuristic.services;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.victoandrad.hyperheuristic.heuristics.hyperheuristics.Hyperheuristic;
 import com.victoandrad.hyperheuristic.heuristics.metaheuristics.Metaheuristic;
 import com.victoandrad.hyperheuristic.heuristics.hyperheuristics.choicefunction.HeuristicAndPerformance;
 import com.victoandrad.hyperheuristic.heuristics.metaheuristics.dependents.Performance;
-import com.victoandrad.hyperheuristic.utils.Job;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -35,7 +31,7 @@ public class HyperheuristicService {
     private final ObjectMapper objectMapper;
 
     // To store jobs
-    private final ConcurrentMap<String, Job> jobs = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, JsonNode> jobs = new ConcurrentHashMap<>();
 
     // To control multithreaded processing
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -61,8 +57,8 @@ public class HyperheuristicService {
         LocalDateTime startExecution = LocalDateTime.now();
 
         String jobId = UUID.randomUUID().toString();
-        JsonNode problem = getProblem();
-        jobs.put(jobId, new Job(jobId, problem));
+        JsonNode problem = metaHeuristicService.getProblem();
+        jobs.put(jobId, problem);
 
         executor.submit(() -> {
 
@@ -76,7 +72,7 @@ public class HyperheuristicService {
                 System.out.println("================");
                 Metaheuristic selectedHeuristic = hyperHeuristic.selectMetaheuristic();
                 LocalDateTime start = LocalDateTime.now();
-                Job execution = metaHeuristicService.applyMetaHeuristic(selectedHeuristic, jobs.get(jobId).getProblem());
+                JsonNode execution = metaHeuristicService.applyMetaHeuristic(selectedHeuristic, jobs.get(jobId));
                 LocalDateTime end = LocalDateTime.now();
 
                 selectedHeuristic.setLastApplication(LocalDateTime.now());
@@ -84,7 +80,7 @@ public class HyperheuristicService {
                 System.out.println("Execution time: " + duration + " seconds");
 
                 // Update heuristic performance
-                Performance performance = Performance.of(execution.getProblem().get("score").asText());
+                Performance performance = Performance.of(execution.get("score").asText());
 
                 selectedHeuristic.updatePerformance(performance);
 
@@ -98,45 +94,42 @@ public class HyperheuristicService {
                 selectedHeuristic.incrementUsageCount();
 
                 // Update job
+                updateSolverStatus(execution, "SOLVING_ACTIVE");
                 updateJob(jobId, execution);
-
-                System.out.println(Duration.between(startExecution, LocalDateTime.now()).toHours() < 3);
-                System.out.println("TEST");
             }
 
+            updateSolverStatus(jobs.get(jobId), "NOT_SOLVING");
             System.out.println("Hyper-heuristic finished: " + jobId);
         });
 
         return jobId;
     }
 
-    public JsonNode getProblem() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Accept", "application/json");
-        HttpEntity<Void> request = new HttpEntity<>(headers);
-
-        JsonNode problem = null;
-        try {
-            problem = objectMapper.readTree(restTemplate.exchange(
-                    "http://localhost:8080/demo-data/B3",
-                    HttpMethod.GET,
-                    request,
-                    String.class).getBody());
-        } catch (JsonProcessingException e) {
-            System.out.println("Error converting problem to JSON: " + e.getMessage());
-        }
-        return problem;
+    public JsonNode getStatus(String jobId) {
+        JsonNode job = jobs.get(jobId);
+        return metaHeuristicService.stringToJson(
+                "{ \"name\": \"" + job.get("name").asText() +
+                        "\", \"score\": \"" + job.get("score").asText() +
+                        "\", \"solverStatus\": \"" + job.get("solverStatus").asText() +
+                        "\" }");
     }
 
-    public Job getJob(String jobId) {
+    public JsonNode getJob(String jobId) {
         return jobs.get(jobId);
     }
 
-    public void updateJob(String jobId, Job job) {
-        jobs.put(jobId, job);
+    public void updateJob(String jobId, JsonNode problem) {
+        jobs.put(jobId, problem);
     }
 
     public List<String> getJobs() {
         return List.copyOf(jobs.keySet());
+    }
+
+    private void updateSolverStatus(JsonNode problem, String solverStatus) {
+        if (problem.isObject()) {
+            ObjectNode objectNode = (ObjectNode) problem;
+            objectNode.put("solverStatus", solverStatus);
+        };
     }
 }
