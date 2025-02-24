@@ -14,15 +14,15 @@ public class ChoiceFunction implements Hyperheuristic {
 
     private final String heuristicName = "choiceFunction";
 
-    private final double pesoF1 = 0.9;
-    private final double pesoF2 = 0.1;
-    private final double pesoF3 = 1.5;
+    private static final double pesoF1 = 0.9;
+    private static final double pesoF2 = 0.1;
+    private static final double pesoF3 = 1.5;
 
     @Getter
-    private List<Metaheuristic> heuristics;
+    private final List<Metaheuristic> heuristics;
 
     @Getter
-    private double[] heuristicsScores;
+    private final double[] heuristicsScores;
 
     public ChoiceFunction(List<Metaheuristic> metaHeuristics) {
         this.heuristics = metaHeuristics;
