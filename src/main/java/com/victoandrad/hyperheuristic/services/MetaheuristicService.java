@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.victoandrad.hyperheuristic.heuristics.metaheuristics.Metaheuristic;
-import com.victoandrad.hyperheuristic.utils.Job;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -18,6 +17,7 @@ public class MetaheuristicService {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private static final String API_URL = "http://localhost:8080";
 
     @Autowired
     public MetaheuristicService(RestTemplate restTemplate,
@@ -26,7 +26,7 @@ public class MetaheuristicService {
         this.objectMapper = objectMapper;
     }
 
-    public Job applyMetaHeuristic(Metaheuristic metaHeuristic, JsonNode problem) {
+    public JsonNode applyMetaHeuristic(Metaheuristic metaHeuristic, JsonNode problem) {
         System.out.println("Starting " + metaHeuristic.getClass().getSimpleName() + " meta-heuristic");
 
         HttpHeaders headers = new HttpHeaders();
@@ -34,7 +34,7 @@ public class MetaheuristicService {
         HttpEntity<JsonNode> request = new HttpEntity<>(problem, headers);
 
         String jobId = restTemplate.exchange(
-                "http://localhost:8080/timetables/" + metaHeuristic.getName(),
+                API_URL + "/timetables/" + metaHeuristic.getName(),
                 HttpMethod.POST,
                 request,
                 String.class).getBody();
@@ -58,7 +58,7 @@ public class MetaheuristicService {
             }
         }
 
-        return new Job(jobId, job);
+        return job;
     }
 
     public JsonNode getJob(String jobId) {
@@ -66,16 +66,81 @@ public class MetaheuristicService {
         headers.set("Accept", "application/json");
         HttpEntity<Void> request = new HttpEntity<>(headers);
 
-        JsonNode problem = null;
-        try {
-            problem = objectMapper.readTree(restTemplate.exchange(
-                    "http://localhost:8080/timetables/" + jobId,
+        String response = restTemplate.exchange(
+                API_URL + "/timetables/" + jobId,
+                HttpMethod.GET,
+                request,
+                String.class).getBody();
+
+        return stringToJson(response);
+    }
+
+    // retorna o score e uma lista das constraints ocorridas
+    public JsonNode analyze(JsonNode timetable) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Accept", "application/json");
+        HttpEntity<JsonNode> request = new HttpEntity<>(timetable, headers);
+
+        String response = restTemplate.exchange(
+                API_URL + "/timetables/analyze",
+                HttpMethod.PUT,
+                request,
+                String.class).getBody();
+
+        return stringToJson(response);
+    }
+
+    public JsonNode getStatus(String jobId) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Accept", "application/json");
+        HttpEntity<JsonNode> request = new HttpEntity<>(headers);
+
+        String response = restTemplate.exchange(
+                API_URL + "/timetables/" + jobId + "/status}",
+                HttpMethod.GET,
+                request,
+                String.class).getBody();
+
+        return stringToJson(response);
+    }
+
+    public JsonNode terminateSolving(String jobId) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Accept", "application/json");
+        HttpEntity<JsonNode> request = new HttpEntity<>(headers);
+
+        String response = restTemplate.exchange(
+                API_URL + "/timetables/" + jobId,
+                HttpMethod.DELETE,
+                request,
+                String.class).getBody();
+
+        return stringToJson(response);
+    }
+
+    // MÉTODOS AUXILIARES
+
+    public JsonNode getProblem() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Accept", "application/json");
+        HttpEntity<Void> request = new HttpEntity<>(headers);
+
+        String response = restTemplate.exchange(
+                    "http://localhost:8080/demo-data/B3",
                     HttpMethod.GET,
                     request,
-                    String.class).getBody());
+                    String.class).getBody();
+
+        return stringToJson(response);
+    }
+
+    public JsonNode stringToJson(String content) {
+        JsonNode jsonNode = null;
+        try {
+            jsonNode = objectMapper.readTree(content);
         } catch (JsonProcessingException e) {
-            System.out.println("Error converting problem to JSON: " + e.getMessage());
+            System.out.println("Error converting content to JSON: " + e.getMessage());
         }
-        return problem;
+        return jsonNode;
     }
 }
