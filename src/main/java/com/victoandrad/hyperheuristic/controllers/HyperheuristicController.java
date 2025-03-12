@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.Collection;
 
 @RestController
 @RequestMapping("/hyperheuristic")
@@ -17,8 +17,7 @@ public class HyperheuristicController {
     private final MetaheuristicService metaheuristicService;
 
     @Autowired
-    public HyperheuristicController(HyperheuristicService hyperheuristicService,
-                                    MetaheuristicService metaheuristicService) {
+    public HyperheuristicController(HyperheuristicService hyperheuristicService, MetaheuristicService metaheuristicService) {
         this.hyperheuristicService = hyperheuristicService;
         this.metaheuristicService = metaheuristicService;
     }
@@ -36,14 +35,14 @@ public class HyperheuristicController {
     }
 
     @GetMapping
-    public ResponseEntity<List<String>> getJobs() {
-        List<String> jobs = hyperheuristicService.getJobs();
+    public ResponseEntity<Collection<String>> getJobs() {
+        Collection<String> jobs = hyperheuristicService.getJobs();
         return ResponseEntity.ok().body(jobs);
     }
 
     @PutMapping(value = "/analyze")
-    public ResponseEntity<JsonNode> analyze(@RequestBody JsonNode timetable) {
-        JsonNode result = metaheuristicService.analyze(timetable);
+    public ResponseEntity<JsonNode> analyze(@RequestBody JsonNode timetable, @RequestParam("hyperheuristicJobId") String hyperheuristicJobId) {
+        JsonNode result = metaheuristicService.analyze(hyperheuristicJobId, timetable);
         return ResponseEntity.ok().body(result);
     }
 
@@ -53,9 +52,11 @@ public class HyperheuristicController {
         return ResponseEntity.ok().body(result);
     }
 
-    @DeleteMapping(value = "/{jobId}")
-    public ResponseEntity<JsonNode> terminateSolving(@PathVariable String jobId) {
-        JsonNode result = metaheuristicService.terminateSolving(jobId);
-        return ResponseEntity.ok().body(result);
-    }
+    // TODO: RESOLVER O MÉTODO TERMINATESOLVING
+
+//    @DeleteMapping(value = "/{jobId}")
+//    public ResponseEntity<JsonNode> terminateSolving(@PathVariable String jobId, @RequestParam("hyperheuristicJobId") String hyperheuristicJobId) {
+//        JsonNode result = metaheuristicService.terminateSolving(jobId, hyperheuristicJobId);
+//        return ResponseEntity.ok().body(result);
+//    }
 }

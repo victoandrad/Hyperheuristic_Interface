@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,15 +29,14 @@ public class HyperheuristicService {
     // To control multithreaded processing
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
-    // To store the hyper-heuristic
+    // To store the hyperheuristic
     private final Hyperheuristic hyperHeuristic;
 
-    // To store the meta-heuristic service
+    // To store the metaheuristic service
     private final MetaheuristicService metaheuristicService;
 
     @Autowired
-    public HyperheuristicService(Hyperheuristic hyperHeuristic,
-                                 MetaheuristicService metaheuristicService) {
+    public HyperheuristicService(Hyperheuristic hyperHeuristic, MetaheuristicService metaheuristicService) {
         this.hyperHeuristic = hyperHeuristic;
         this.metaheuristicService = metaheuristicService;
     }
@@ -58,35 +58,30 @@ public class HyperheuristicService {
             while (Duration.between(startExecution, LocalDateTime.now()).toHours() < 3) {
 
                 System.out.println("================");
+
                 Metaheuristic selectedHeuristic = hyperHeuristic.selectMetaheuristic();
+                selectedHeuristic.incrementUsageCount();
+
                 LocalDateTime start = LocalDateTime.now();
-                JsonNode execution = metaheuristicService.applyMetaHeuristic(selectedHeuristic, jobs.get(jobId));
+                JsonNode execution = metaheuristicService.applyMetaHeuristic(jobId, selectedHeuristic, jobs.get(jobId));
                 LocalDateTime end = LocalDateTime.now();
 
                 selectedHeuristic.setLastApplication(LocalDateTime.now());
                 long duration = Duration.between(start, end).getSeconds();
                 System.out.println("Execution time: " + duration + " seconds");
 
-                // Update heuristic performance
                 Performance performance = Performance.of(execution.get("score").asText());
-
                 selectedHeuristic.updatePerformance(performance);
 
-                // Add heuristic name and its performance to history
                 historic.add(new HeuristicAndPerformance(selectedHeuristic.getName(), performance));
-
-                // Update heuristics score before execution
                 hyperHeuristic.updateScores(historic);
 
-                // Update selected heuristics usage count
-                selectedHeuristic.incrementUsageCount();
-
                 // Update job
-                updateSolverStatus(execution, "SOLVING_ACTIVE");
-                updateJob(jobId, execution);
+                setSolverStatus(execution, "SOLVING_ACTIVE");
+                jobs.put(jobId, execution);
             }
 
-            updateSolverStatus(jobs.get(jobId), "NOT_SOLVING");
+            setSolverStatus(jobs.get(jobId), "NOT_SOLVING");
             System.out.println("Hyperheuristic finished: " + jobId);
         });
 
@@ -106,15 +101,11 @@ public class HyperheuristicService {
         return jobs.get(jobId);
     }
 
-    public void updateJob(String jobId, JsonNode problem) {
-        jobs.put(jobId, problem);
+    public Collection<String> getJobs() {
+        return jobs.keySet();
     }
 
-    public List<String> getJobs() {
-        return List.copyOf(jobs.keySet());
-    }
-
-    private void updateSolverStatus(JsonNode problem, String solverStatus) {
+    private void setSolverStatus(JsonNode problem, String solverStatus) {
         if (problem.isObject()) {
             ObjectNode objectNode = (ObjectNode) problem;
             objectNode.put("solverStatus", solverStatus);

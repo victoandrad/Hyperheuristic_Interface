@@ -12,37 +12,46 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Service
 public class MetaheuristicService {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
-    private static final String API_URL = "http://localhost:8080";
+
+    private static final String HOST = "http://localhost:8080";
+    private static final String END_POINT = HOST + "/hyperheuristic";
 
     @Autowired
-    public MetaheuristicService(RestTemplate restTemplate,
-                                ObjectMapper objectMapper) {
+    public MetaheuristicService(RestTemplate restTemplate, ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
     }
 
-    public JsonNode applyMetaHeuristic(Metaheuristic metaHeuristic, JsonNode problem) {
-        System.out.println("Starting " + metaHeuristic.getClass().getSimpleName() + " meta-heuristic");
+    public JsonNode applyMetaHeuristic(String hyperheuristicJobId, Metaheuristic metaheuristic, JsonNode problem) {
+        System.out.println("Starting " + metaheuristic.getName() + " metaheuristic");
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<JsonNode> request = new HttpEntity<>(problem, headers);
 
-        String jobId = restTemplate.exchange(
-                API_URL + "/timetables/" + metaHeuristic.getName(),
+        Map<String, String> params = new HashMap<>();
+        params.put("metaheuristic", metaheuristic.getName());
+        params.put("hyperheuristicJobId", hyperheuristicJobId);
+
+        String metaheuristicJobId = restTemplate.exchange(
+                END_POINT,
                 HttpMethod.POST,
                 request,
-                String.class).getBody();
+                String.class,
+                params
+        ).getBody();
 
-        System.out.println("Job: " + jobId);
+        System.out.println("Job: " + metaheuristicJobId);
 
         JsonNode job = null;
-
         boolean isSolving = true;
         while (isSolving) {
             try {
@@ -51,54 +60,68 @@ public class MetaheuristicService {
                 System.out.println("Error while sleep: " + e.getMessage());
             }
 
-            job = getJob(jobId);
+            job = getJob(hyperheuristicJobId, metaheuristicJobId);
             String solverStatus = job.get("solverStatus").asText();
             if (solverStatus.equals("NOT_SOLVING")) {
                 isSolving = false;
             }
         }
-
         return job;
     }
 
-    public JsonNode getJob(String jobId) {
+    public JsonNode getJob(String hyperheuristicJobId, String metaheuristicJobId) {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Accept", "application/json");
         HttpEntity<Void> request = new HttpEntity<>(headers);
 
+        Map<String, String> params = new HashMap<>();
+        params.put("hyperheuristicJobId", hyperheuristicJobId);
+
         String response = restTemplate.exchange(
-                API_URL + "/timetables/" + jobId,
+                END_POINT + "/" + metaheuristicJobId,
                 HttpMethod.GET,
                 request,
-                String.class).getBody();
+                String.class,
+                params
+        ).getBody();
 
         return stringToJson(response);
     }
 
-    public JsonNode analyze(JsonNode timetable) {
+    public JsonNode analyze(String hyperheuristicJobId, JsonNode timetable) {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Accept", "application/json");
         HttpEntity<JsonNode> request = new HttpEntity<>(timetable, headers);
 
+        Map<String, String> params = new HashMap<>();
+        params.put("hyperheuristicJobId", hyperheuristicJobId);
+
         String response = restTemplate.exchange(
-                API_URL + "/timetables/analyze",
+                END_POINT + "/analyze",
                 HttpMethod.PUT,
                 request,
-                String.class).getBody();
+                String.class,
+                params
+        ).getBody();
 
         return stringToJson(response);
     }
 
-    public JsonNode terminateSolving(String jobId) {
+    public JsonNode terminateSolving(String hyperheuristicJobId, String metaheuristicJobId) {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Accept", "application/json");
         HttpEntity<JsonNode> request = new HttpEntity<>(headers);
 
+        Map<String, String> params = new HashMap<>();
+        params.put("hyperheuristicJobId", hyperheuristicJobId);
+
         String response = restTemplate.exchange(
-                API_URL + "/timetables/" + jobId,
+                END_POINT + "/" + metaheuristicJobId,
                 HttpMethod.DELETE,
                 request,
-                String.class).getBody();
+                String.class,
+                params
+        ).getBody();
 
         return stringToJson(response);
     }
@@ -111,10 +134,11 @@ public class MetaheuristicService {
         HttpEntity<Void> request = new HttpEntity<>(headers);
 
         String response = restTemplate.exchange(
-                    "http://localhost:8080/demo-data/B3",
-                    HttpMethod.GET,
-                    request,
-                    String.class).getBody();
+                HOST + "/demo-data/B3",
+                HttpMethod.GET,
+                request,
+                String.class
+        ).getBody();
 
         return stringToJson(response);
     }
